@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Persistent To-Do List</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@3.4.0/dist/full.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-base-200">
+    <div class="hero min-h-screen bg-base-200">
+      <div class="hero-content text-center">
+        <div class="card flex-shrink-0 w-full max-w-sm shadow-2xl bg-base-100">
+          <div class="card-body">
+            <h2 class="text-2xl font-bold">Simplest-To-Do List</h2>
+            <div class="form-control">
+              <input
+                type="time"
+                id="taskTime"
+                class="input input-bordered"
+                step="3600"
+              />
+            </div>
+            <div class="form-control">
+              <input type="date" id="taskDate" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+              <input
+                type="text"
+                id="taskInput"
+                placeholder="Enter a task"
+                class="input input-bordered"
+              />
+            </div>
+            <div class="flex justify-center">
+              <button class="btn btn-primary mt-4" onclick="addTask()">
+                Add Task
+              </button>
+            </div>
+            <ul id="todo-list" class="mt-4 list-disc"></ul>
+            <div class="flex justify-center">
+              <button class="btn btn-primary mt-4" onclick="clearCheckboxes()">
+                Uncheck All
+              </button>
+              <button
+                class="btn btn-primary mt-4 mx-2"
+                onclick="removeAllTasks()"
+              >
+                Remove All
+              </button>
+            </div>
+            <div class="flex justify-center">
+              <button class="btn btn-primary mt-4" onclick="exportToExcel()">
+                Download Excel
+              </button>
+            </div>
+            <div class="form-control mt-4">
+              <input
+                type="text"
+                id="fileNameInput"
+                placeholder="Enter File Name"
+                class="input input-bordered"
+              />
+            </div>
+            <p class="text-xs text-center mt-4">
+              © 2025 Rahiq Al Makhtum. All Rights Reserved.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const STORAGE_KEY = "todoList";
+
+      document.addEventListener("DOMContentLoaded", loadTasks);
+
+      // Add event listener for the "Enter" key
+      document
+        .getElementById("taskInput")
+        .addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            addTask();
+          }
+        });
+
+      function addTask() {
+        const taskInput = document.getElementById("taskInput");
+        const taskDateInput = document.getElementById("taskDate");
+        const taskTimeInput = document.getElementById("taskTime");
+        const taskText = taskInput.value.trim();
+        const taskDate = taskDateInput.value;
+        const taskTime = taskTimeInput.value;
+
+        if (taskText === "") {
+          alert("Please enter a task.");
+          return;
+        }
+
+        const li = document.createElement("li");
+        li.innerHTML = `<input type="checkbox" class="checkbox" onchange="saveTasks()"> ${taskText} 
+                                <span class="ml-2">(${
+                                  taskDate ? taskDate : ""
+                                } ${taskTime ? taskTime : ""})</span>
+                                <button class="btn btn-error btn-xs ml-2" onclick="removeTask(this)">Remove</button>`;
+
+        document.getElementById("todo-list").appendChild(li);
+        taskInput.value = "";
+        taskDateInput.value = "";
+        taskTimeInput.value = "";
+        saveTasks();
+      }
+
+      function removeTask(button) {
+        button.parentElement.remove();
+        saveTasks();
+      }
+
+      function removeAllTasks() {
+        const todoList = document.getElementById("todo-list");
+        todoList.innerHTML = "";
+        saveTasks();
+      }
+
+      function clearCheckboxes() {
+        document
+          .querySelectorAll('#todo-list input[type="checkbox"]')
+          .forEach((checkbox) => {
+            checkbox.checked = false;
+          });
+        saveTasks();
+      }
+
+      function saveTasks() {
+        let tasks = [];
+        document.querySelectorAll("#todo-list li").forEach((li) => {
+          tasks.push({
+            text: li.childNodes[1].nodeValue.trim(),
+            date: li
+              .querySelector("span")
+              .textContent.replace("(", "")
+              .replace(")", "")
+              .split(" ")[0],
+            time: li
+              .querySelector("span")
+              .textContent.replace("(", "")
+              .replace(")", "")
+              .split(" ")[1],
+            checked: li.querySelector(".checkbox").checked,
+          });
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      }
+
+      function loadTasks() {
+        const savedTasks = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        savedTasks.forEach((task) => {
+          const li = document.createElement("li");
+          li.innerHTML = `<input type="checkbox" class="checkbox" ${
+            task.checked ? "checked" : ""
+          } onchange="saveTasks()"> ${task.text} 
+                                <span class="ml-2">(${
+                                  task.date ? task.date : ""
+                                } ${task.time ? task.time : ""})</span>
+                                <button class="btn btn-error btn-xs ml-2" onclick="removeTask(this)">Remove</button>`;
+          document.getElementById("todo-list").appendChild(li);
+        });
+      }
+
+      function exportToExcel() {
+        let tasks = [];
+        document.querySelectorAll("#todo-list li").forEach((li, index) => {
+          const taskText = li.childNodes[1].nodeValue.trim();
+          const taskDate = li
+            .querySelector("span")
+            .textContent.replace("(", "")
+            .replace(")", "")
+            .split(" ")[0];
+          const taskTime = li
+            .querySelector("span")
+            .textContent.replace("(", "")
+            .replace(")", "")
+            .split(" ")[1];
+          const isChecked = li.querySelector(".checkbox").checked
+            ? "Completed"
+            : "Pending";
+          tasks.push({
+            No: index + 1,
+            Task: taskText,
+            Date: taskDate,
+            Time: taskTime,
+            Status: isChecked,
+          });
+        });
+
+        if (tasks.length === 0) {
+          alert("No tasks to export.");
+          return;
+        }
+
+        const ws = XLSX.utils.json_to_sheet(tasks);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "To-Do List");
+
+        const fileNameInput = document.getElementById("fileNameInput");
+        const fileName = fileNameInput.value.trim() || "ToDo_List";
+        XLSX.writeFile(wb, `${fileName}.xlsx`);
+      }
+    </script>
+  </body>
+</html>
