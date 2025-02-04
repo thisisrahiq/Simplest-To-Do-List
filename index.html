@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Persistent To-Do List</title>
+    <title>Simplest-To-Do List</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link
       href="https://cdn.jsdelivr.net/npm/daisyui@3.4.0/dist/full.css"
@@ -12,6 +12,7 @@
     />
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
+
   <body class="bg-base-200">
     <div class="hero min-h-screen bg-base-200">
       <div class="hero-content text-center">
@@ -42,7 +43,8 @@
                 Add Task
               </button>
             </div>
-            <ul id="todo-list" class="mt-4 list-disc"></ul>
+            <!-- task container -->
+            <ul id="todo-list" class="mt-4 list-none pl-0 space-y-4"></ul>
             <div class="flex justify-center">
               <button class="btn btn-primary mt-4" onclick="clearCheckboxes()">
                 Uncheck All
@@ -80,7 +82,6 @@
 
       document.addEventListener("DOMContentLoaded", loadTasks);
 
-      // Add event listener for the "Enter" key
       document
         .getElementById("taskInput")
         .addEventListener("keydown", function (event) {
@@ -103,22 +104,33 @@
         }
 
         const li = document.createElement("li");
-        li.innerHTML = `<input type="checkbox" class="checkbox" onchange="saveTasks()"> ${taskText} 
-                                <span class="ml-2">(${
-                                  taskDate ? taskDate : ""
-                                } ${taskTime ? taskTime : ""})</span>
-                                <button class="btn btn-error btn-xs ml-2" onclick="removeTask(this)">Remove</button>`;
+        li.className = "flex items-center"; // Key change: li is flex container
+        const numSpan = document.createElement("span");
+        numSpan.className = "mr-2";
+        const div = document.createElement("div");
+        div.className = "flex items-center"; // div remains flex container
+        div.innerHTML = `
+                <input type="checkbox" class="checkbox mr-2" onchange="saveTasks()">
+                <span>${taskText}</span>
+                <span class="ml-2">(${taskDate ? taskDate : ""} ${
+          taskTime ? taskTime : ""
+        })</span>
+                <button class="btn btn-error btn-xs ml-2" onclick="removeTask(this)">Remove</button>`;
 
+        li.appendChild(numSpan);
+        li.appendChild(div);
         document.getElementById("todo-list").appendChild(li);
         taskInput.value = "";
         taskDateInput.value = "";
         taskTimeInput.value = "";
         saveTasks();
+        renumberTasks();
       }
 
       function removeTask(button) {
-        button.parentElement.remove();
+        button.parentElement.parentElement.remove();
         saveTasks();
+        renumberTasks();
       }
 
       function removeAllTasks() {
@@ -139,19 +151,18 @@
       function saveTasks() {
         let tasks = [];
         document.querySelectorAll("#todo-list li").forEach((li) => {
+          const div = li.querySelector("div");
           tasks.push({
-            text: li.childNodes[1].nodeValue.trim(),
-            date: li
-              .querySelector("span")
-              .textContent.replace("(", "")
-              .replace(")", "")
+            text: div.querySelector("span").textContent,
+            date: div
+              .querySelector("span:nth-child(2)")
+              .textContent.replace(/\(|\)/g, "")
               .split(" ")[0],
-            time: li
-              .querySelector("span")
-              .textContent.replace("(", "")
-              .replace(")", "")
+            time: div
+              .querySelector("span:nth-child(2)")
+              .textContent.replace(/\(|\)/g, "")
               .split(" ")[1],
-            checked: li.querySelector(".checkbox").checked,
+            checked: div.querySelector(".checkbox").checked,
           });
         });
         localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
@@ -161,32 +172,42 @@
         const savedTasks = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
         savedTasks.forEach((task) => {
           const li = document.createElement("li");
-          li.innerHTML = `<input type="checkbox" class="checkbox" ${
-            task.checked ? "checked" : ""
-          } onchange="saveTasks()"> ${task.text} 
-                                <span class="ml-2">(${
-                                  task.date ? task.date : ""
-                                } ${task.time ? task.time : ""})</span>
-                                <button class="btn btn-error btn-xs ml-2" onclick="removeTask(this)">Remove</button>`;
+          li.className = "flex items-center"; // Key change: li is flex container
+          const numSpan = document.createElement("span");
+          numSpan.className = "mr-2";
+          const div = document.createElement("div");
+          div.className = "flex items-center"; // div remains flex container
+          div.innerHTML = `
+                    <input type="checkbox" class="checkbox mr-2" ${
+                      task.checked ? "checked" : ""
+                    } onchange="saveTasks()">
+                    <span>${task.text}</span>
+                    <span class="ml-2">(${task.date ? task.date : ""} ${
+            task.time ? task.time : ""
+          })</span>
+                    <button class="btn btn-error btn-xs ml-2" onclick="removeTask(this)">Remove</button>`;
+
+          li.appendChild(numSpan);
+          li.appendChild(div);
           document.getElementById("todo-list").appendChild(li);
         });
+        renumberTasks();
       }
 
       function exportToExcel() {
         let tasks = [];
         document.querySelectorAll("#todo-list li").forEach((li, index) => {
-          const taskText = li.childNodes[1].nodeValue.trim();
-          const taskDate = li
-            .querySelector("span")
-            .textContent.replace("(", "")
-            .replace(")", "")
+          const div = li.querySelector("div");
+          const taskText = div.querySelector("span").textContent;
+          const taskDate = div
+            .querySelector("span:nth-child(2)")
+            .textContent.replace(/\(|\)/g, "")
             .split(" ")[0];
-          const taskTime = li
-            .querySelector("span")
-            .textContent.replace("(", "")
-            .replace(")", "")
+          const taskTime = div
+            .querySelector("span:nth-child(2)")
+            .textContent.replace(/\(|\)/g, "")
             .split(" ")[1];
-          const isChecked = li.querySelector(".checkbox").checked
+          const isChecked = div.querySelector(".checkbox").checked
             ? "Completed"
             : "Pending";
           tasks.push({
@@ -210,6 +231,15 @@
         const fileNameInput = document.getElementById("fileNameInput");
         const fileName = fileNameInput.value.trim() || "ToDo_List";
         XLSX.writeFile(wb, `${fileName}.xlsx`);
+      }
+
+      function renumberTasks() {
+        const todoList = document.getElementById("todo-list");
+        const listItems = todoList.querySelectorAll("li");
+        listItems.forEach((item, index) => {
+          const numSpan = item.querySelector("span:first-child");
+          numSpan.textContent = index + 1 + ". ";
+        });
       }
     </script>
   </body>
